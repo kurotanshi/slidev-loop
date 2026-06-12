@@ -3,3 +3,8 @@ dist/
 .slidev/
 *.local
 .DS_Store
+
+# playground 試用時由 slidev-loop init 生成的轉接檔
+playground/.claude/
+playground/.codex/
+playground/AGENTS.md
