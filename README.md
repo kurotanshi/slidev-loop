@@ -4,8 +4,9 @@
 再於瀏覽器中對投影片元素留言，由 AI agent 讀取留言、修改 `slides.md`，
 透過 HMR 即時看到結果。
 
-目前已支援並實測 **Claude Code** 與 **Codex**；Cursor、Gemini CLI、Copilot
-在 roadmap 上（Phase 3B）。留言機制本身是檔案協定，不綁定任何一家 agent。
+目前已支援 **Claude Code**、**Codex**、**Cursor**、**Gemini CLI**、**Copilot**
+的轉接檔生成；其中 Claude Code 與 Codex 已完成實測閉環。留言機制本身是檔案協定，
+不綁定任何一家 agent。
 
 ## 三段工作流
 
@@ -45,13 +46,15 @@ pnpm dev          # 啟動 playground deck（預設 http://localhost:3030）
 3. 生成 agent 轉接檔（發布後等價於 `npx slidev-loop init`）：
 
    ```bash
-   node packages/cli/bin/slidev-loop.mjs init --agents claude,codex --root playground
+   node packages/cli/bin/slidev-loop.mjs init --agents claude,codex,cursor,gemini,copilot --root playground
    ```
 
 4. 請 agent 套用留言：
    - **Claude Code**：載入生成的 plugin（`--plugin-dir .claude/plugins/slidev-loop`，
      正式安裝流程於 Phase 4 定案）後執行 `slidev-loop-apply-comments` skill。
    - **Codex**：直接說「套用投影片留言」，它會循 `AGENTS.md` 找到工作流。
+   - **Cursor / Gemini CLI / Copilot**：已可生成對應 rules、commands、instructions、prompt files；
+     仍待 Phase 3B dogfood 完成實測紀錄。
 
    agent 修改 `slides.md` 後 HMR 即時更新畫面，留言被標記 `applied`、pin 即時消失；
    無法定位或語意模糊的留言會標記 `skipped` 並在 `resolution` 寫明原因，不會亂改。
@@ -103,9 +106,10 @@ docs/                         # 規劃文件與驗證紀錄
    把留言落地到專案的 `.slidev/comments.json`，並監看該檔案、變更時推播給 overlay。
 
 4. **Agent 端**：工作流指令以單一事實來源維護，由 `slidev-loop init --agents <list>`
-   轉成各家 agent 原生格式寫入專案 — 目前支援 Claude Code（plugin + SKILL.md）與
-   Codex（AGENTS.md 管理區塊 + prompt 檔），Cursor / Gemini CLI / Copilot 規劃於
-   Phase 3B。agent 利用每筆留言的「頁碼 + 元素文字」在 `slides.md` 中定位
+   轉成各家 agent 原生格式寫入專案 — 目前支援 Claude Code（plugin + SKILL.md）、
+   Codex（AGENTS.md 管理區塊 + prompt 檔）、Cursor（rules + commands）、
+   Gemini CLI（GEMINI.md + commands）與 Copilot（instructions + prompt files）。
+   agent 利用每筆留言的「頁碼 + 元素文字」在 `slides.md` 中定位
    （`---` 分頁，逐頁對應），套用修改後標記留言；可選用
    `slidev export --format png --range N` 自我驗證渲染結果。
 
@@ -124,5 +128,4 @@ docs/                         # 規劃文件與驗證紀錄
   （歷史檢視為可選待辦）
 - **Phase 3A（agent 整合最小矩陣）：完成** — Claude Code 與 Codex adapter
   實測通過
-- **進行中**：Phase 3B（Cursor / Gemini CLI / Copilot 轉接層 + CI drift check）、
-  Phase 4（npm 發布）
+- **進行中**：Phase 3B（Cursor 實測閉環、PNG 自我驗證選項）、Phase 4（npm 發布）
