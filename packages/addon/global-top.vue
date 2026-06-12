@@ -1,85 +1,87 @@
 <template>
-  <div v-if="isDev" data-slidev-loop-ui>
-    <div :style="panelStyle" data-testid="slidev-loop-overlay">
-      <strong>Slidev Loop</strong>
-      <span :style="mutedStyle">page {{ currentPage }}</span>
-      <button type="button" :style="buttonStyle" @click="toggleCommentMode">
-        {{ commentMode ? 'Commenting' : 'Comment' }}
-      </button>
-      <span v-if="commentMode" :style="hintStyle">click a slide element</span>
-    </div>
+  <Teleport v-if="isDev" to="body">
+    <div data-slidev-loop-ui>
+      <div :style="panelStyle" data-testid="slidev-loop-overlay">
+        <strong>Slidev Loop</strong>
+        <span :style="mutedStyle">page {{ currentPage }}</span>
+        <button type="button" :style="buttonStyle" @click="toggleCommentMode">
+          {{ commentMode ? 'Commenting' : 'Comment' }}
+        </button>
+        <span v-if="commentMode" :style="hintStyle">click a slide element</span>
+      </div>
 
-    <div v-if="openComments.length" :style="listStyle" data-testid="slidev-loop-comments">
-      <div
-        v-for="comment in openComments"
-        :key="comment.id"
-        :style="commentStyle"
-        data-testid="slidev-loop-comment-row"
-      >
-        <div :style="commentBodyStyle">
-          <span :style="commentMetaStyle">p{{ comment.slideNo }}</span>
-          <span :style="commentTextStyle">{{ comment.comment }}</span>
-        </div>
-        <button
-          type="button"
-          :aria-label="`Delete comment: ${comment.comment}`"
-          :style="deleteButtonStyle"
-          data-testid="slidev-loop-delete-comment"
-          @click="deleteComment(comment.id)"
+      <div v-if="openComments.length" :style="listStyle" data-testid="slidev-loop-comments">
+        <div
+          v-for="comment in openComments"
+          :key="comment.id"
+          :style="commentStyle"
+          data-testid="slidev-loop-comment-row"
         >
-          Delete
-        </button>
+          <div :style="commentBodyStyle">
+            <span :style="commentMetaStyle">p{{ comment.slideNo }}</span>
+            <span :style="commentTextStyle">{{ comment.comment }}</span>
+          </div>
+          <button
+            type="button"
+            :aria-label="`Delete comment: ${comment.comment}`"
+            :style="deleteButtonStyle"
+            data-testid="slidev-loop-delete-comment"
+            @click="deleteComment(comment.id)"
+          >
+            Delete
+          </button>
+        </div>
       </div>
-    </div>
 
-    <div
-      v-if="slideBounds && visibleComments.length"
-      :style="pinsLayerStyle"
-      data-testid="slidev-loop-pins"
-    >
       <div
-        v-for="(comment, index) in visibleComments"
-        :key="comment.id"
-        aria-hidden="true"
-        :style="getPinStyle(comment)"
-        :title="comment.comment"
-        data-testid="slidev-loop-pin"
+        v-if="slideBounds && visibleComments.length"
+        :style="pinsLayerStyle"
+        data-testid="slidev-loop-pins"
       >
-        <span :style="pinBadgeStyle">{{ index + 1 }}</span>
+        <div
+          v-for="(comment, index) in visibleComments"
+          :key="comment.id"
+          aria-hidden="true"
+          :style="getPinStyle(comment)"
+          :title="comment.comment"
+          data-testid="slidev-loop-pin"
+        >
+          <span :style="pinBadgeStyle">{{ index + 1 }}</span>
+        </div>
       </div>
-    </div>
 
-    <div
-      v-if="commentMode && hoverBounds"
-      :style="getHoverHighlightStyle()"
-      data-testid="slidev-loop-hover-highlight"
-    />
-
-    <form
-      v-if="pendingPayload"
-      :style="formStyle"
-      data-testid="slidev-loop-form"
-      @submit.prevent="submitPendingComment"
-      @keydown.esc.prevent.stop="cancelPendingComment"
-    >
-      <textarea
-        ref="inputRef"
-        v-model="draftComment"
-        :style="inputStyle"
-        data-testid="slidev-loop-input"
-        rows="3"
-        @keydown.enter.exact.prevent="submitPendingComment"
+      <div
+        v-if="commentMode && hoverBounds"
+        :style="getHoverHighlightStyle()"
+        data-testid="slidev-loop-hover-highlight"
       />
-      <div :style="formActionsStyle">
-        <button type="button" :style="secondaryButtonStyle" @click="cancelPendingComment">
-          Cancel
-        </button>
-        <button type="submit" :style="primaryButtonStyle">
-          Add
-        </button>
-      </div>
-    </form>
-  </div>
+
+      <form
+        v-if="pendingPayload"
+        :style="formStyle"
+        data-testid="slidev-loop-form"
+        @submit.prevent="submitPendingComment"
+        @keydown.esc.prevent.stop="cancelPendingComment"
+      >
+        <textarea
+          ref="inputRef"
+          v-model="draftComment"
+          :style="inputStyle"
+          data-testid="slidev-loop-input"
+          rows="3"
+          @keydown.enter.exact.prevent="submitPendingComment"
+        />
+        <div :style="formActionsStyle">
+          <button type="button" :style="secondaryButtonStyle" @click="cancelPendingComment">
+            Cancel
+          </button>
+          <button type="submit" :style="primaryButtonStyle">
+            Add
+          </button>
+        </div>
+      </form>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -442,6 +444,7 @@ function getPinStyle(comment) {
 
   return {
     position: 'fixed',
+    boxSizing: 'border-box',
     left: `${bounds.left + rect.x * bounds.width}px`,
     top: `${bounds.top + rect.y * bounds.height}px`,
     width: `${width}px`,
@@ -462,6 +465,7 @@ function getHoverHighlightStyle() {
 
   return {
     position: 'fixed',
+    boxSizing: 'border-box',
     left: `${bounds.left}px`,
     top: `${bounds.top}px`,
     width: `${bounds.width}px`,
