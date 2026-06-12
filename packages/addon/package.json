@@ -1,0 +1,16 @@
+{
+  "name": "slidev-addon-loop",
+  "version": "0.0.0",
+  "description": "A feedback loop for Slidev decks: comment on rendered slides and let an AI agent apply the edits",
+  "keywords": [
+    "slidev-addon",
+    "slidev",
+    "agent",
+    "claude-code"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.12.0",
+    "slidev": ">=52.0.0"
+  }
+}
