@@ -19,10 +19,6 @@ function assertNear(actual: number, expected: number, label: string, tolerance =
   }
 }
 
-function pinLocatorSelector(comment: string) {
-  return `[data-testid="slidev-loop-pin"][title=${JSON.stringify(comment)}]`
-}
-
 async function waitForServer(timeoutMs = 30_000) {
   const startedAt = Date.now()
   let lastError: unknown
@@ -91,7 +87,9 @@ async function main() {
       await page.getByTestId('slidev-loop-comments').getByText(smokeComment).waitFor({
         timeout: 10_000,
       })
-      const smokePin = page.locator(pinLocatorSelector(smokeComment))
+      const smokePin = page
+        .getByTestId('slidev-loop-pin')
+        .and(page.getByTitle(smokeComment, { exact: true }))
       await smokePin.waitFor({ timeout: 10_000 })
       const headingBox = await heading.boundingBox()
       const pinBox = await smokePin.boundingBox()
