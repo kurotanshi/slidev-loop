@@ -75,8 +75,9 @@ global-top.vue 職責：
 
 兩道防護：
 
-- **僅 dev mode**：整個 overlay 以 `import.meta.env.DEV` 守門，`slidev build`
-  產物中不存在。
+- **僅 dev mode**：整個 overlay 以 `import.meta.env.DEV` 守門 — 保證不渲染、
+  邏輯被 tree-shake。注意元件檔本身仍會被 Slidev 聚合編譯，因此 module top-level
+  不得有副作用；Spike A 時順便跑 `slidev build` 確認產物行為乾淨。
 - **僅留言模式**：未開啟時不掛任何 listener，對簡報零干擾。
 
 ### 已知風險與備案
@@ -130,11 +131,18 @@ API 介面：
 - 壞 JSON 的復原策略：rename 成 `comments.json.bak` 後重新初始化，不 silent 覆蓋，
   保留現場供除錯。
 - schema 驗證用 valibot 或 zod，欄位上限（comment 長度、elementText 200 字）定義為常數。
+  另設**總留言數上限**（如 500）：`slidev --remote` 模式下此 API 暴露於區域網路，
+  上限防止檔案被灌爆。
 - Connect middleware 的 `server.middlewares.use('/__agent/comments', ...)` 會 strip
   路徑前綴，DELETE 的 `:id` 需自行從 `req.url` 解析。
-- 併發策略：browser POST 與 agent 標記 `applied` 可能同時寫入。MVP 接受
-  last-write-wins（agent 執行期間使用者通常不會同時留言），但 store 測試須驗證
-  併發寫入不毀損檔案。
+- 併發策略：comments.json 有**兩個互不知情的 read-modify-write 寫者** —
+  middleware（使用者新留言）與 agent（直接改磁碟檔標記 `applied`）。MVP 接受
+  last-write-wins，但兩端都要縮小競態窗口：middleware 每次寫入前重新讀檔合併、
+  不在記憶體長期持有狀態；agent 端由 canonical 指令規定「每套用一筆立即更新該筆
+  status」而非最後整批改寫。store 測試須驗證併發寫入不毀損檔案。
+- 留言狀態同步（Phase 2）：agent 標記 `applied` 改的是磁碟檔，不在 HMR 管轄內，
+  overlay 的 pin 不會自己消失。由 middleware 以 Vite watcher 監看 comments.json，
+  變更時 `server.ws.send` 推自訂事件通知 overlay 重新載入。
 
 ### 備案
 
@@ -162,7 +170,11 @@ API 介面：
 ```
 
 - `slideNo` 是硬定位（agent 不會錯頁）；`elementText` 是軟定位（LLM 在單頁源碼內比對）。
+- `selectorPath` 僅供未來 UI 使用（如 hover 高亮），**agent 不應依賴** —
+  編譯後的 DOM path 無法映射回 markdown（見第 6 節），弱模型拿它定位反而會錯。
 - `rect` 用相對比例（0–1），供未來 UI 重繪 pin 位置，與視窗尺寸解耦。
+  注意基準是**投影片容器元素**而非 viewport：Slidev 以 `transform: scale()`
+  縮放置中投影片，視窗有 letterbox，直接除以視窗寬高會得到錯的比例。
 - `status: open | applied | skipped`，agent 處理後標記而非立即刪除，保留可追溯性；
   UI 只顯示 open。
 
@@ -205,7 +217,9 @@ claude,codex,cursor` 一次寫入使用者專案。
 
 ### 5.3 /apply-comments：套用留言工作流
 
-1. 讀 `.slidev/comments.json`，取所有 `status: open` 的留言。
+1. 讀 `.slidev/comments.json`，取所有 `status: open` 的留言，
+   **依 `slideNo` 由大到小排序**後處理 — 結構變動（增刪頁）只影響其後的頁碼，
+   倒序處理可避免先套用的修改讓後續留言的 `slideNo` 漂移。
 2. 讀 `slides.md`。定位規則：投影片以「前後空行包圍的 `---`」分隔，第一個 YAML 區塊為
    headmatter（不算頁）；第 N 頁 = 第 N 個分隔區段。用留言的 `elementText` 在該頁
    源碼內找到對應行。
@@ -215,7 +229,8 @@ claude,codex,cursor` 一次寫入使用者專案。
 4. 無法定位或語意模糊的留言：標記 `skipped` 並在回報中說明原因，不猜測。
 5. （可選驗證）`npx slidev export --format png --range <slideNo>` 渲染該頁，
    目視確認後再結案。
-6. 把處理完的留言標記 `applied`，回報摘要。
+6. **每套用一筆立即把該筆標記 `applied`**（而非最後整批改寫 —
+   縮小與 middleware 寫入的競態窗口，見第 3 節併發策略），全部處理完回報摘要。
 
 ### 5.4 MCP server（roadmap，非 MVP）
 

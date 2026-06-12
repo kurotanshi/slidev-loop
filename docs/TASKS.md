@@ -5,6 +5,7 @@
 - [ ] **Spike A：addon 的 global-top.vue 是否被聚合。**
       建最小 addon（只有一個印出 `$nav.currentPage` 的 global-top.vue），
       playground 以相對路徑掛載，確認 overlay 出現且 context 可用。
+      順便跑 `slidev build` 確認 `import.meta.env.DEV` 守門後產物行為乾淨。
       失敗 → 改用「使用者專案根目錄 re-export」備案，更新 ARCHITECTURE.md。
 - [ ] **Spike B：addon 的 vite.config.ts middleware 是否生效。**
       最小 plugin 回 `{"ok":true}`，curl `/__agent/comments` 確認 200。
@@ -23,15 +24,20 @@
       - 測試：空檔初始化／新增／刪除／壞 JSON 復原／併發寫入不毀損
 - [ ] `plugin/middleware.ts`：GET / POST / DELETE 處理
       （注意 Connect 會 strip 路徑前綴，DELETE 的 `:id` 需自行從 `req.url` 解析；
-      用 Node 原生 req/res 型別寫，測試不需起 Vite）
-      - 測試:正常流程、缺欄位 400、超長內容 400
+      用 Node 原生 req/res 型別寫，測試不需起 Vite；
+      每次寫入前重新讀檔合併，不在記憶體長期持有狀態）
+      - 測試:正常流程、缺欄位 400、超長內容 400、超過總留言數上限 400
 - [ ] `global-top.vue` 最小版：快捷鍵切換留言模式、capture-phase 點擊攔截、
       `prompt()` 輸入留言（先不做漂亮 UI）、POST 寫入
       - 實測快捷鍵與 Slidev 內建快捷鍵不衝突（留言模式開啟時不可觸發翻頁等行為）
+      - rect 以**投影片容器元素**為基準計算，不是 viewport
+        （Slidev 用 transform: scale 縮放置中，直接除視窗寬高比例會錯）
 - [ ] `agent-instructions/apply-comments.md`（canonical）：定位規則、UnoCSS 樣式慣例、
       skipped 處理、回報格式；先以 Claude Code SKILL.md 形式手動驗證
       - 定位規則附具體範例（`---` 分頁、headmatter 不算頁），
         避免弱模型對抽象描述數錯頁
+      - 套用順序規則：依 slideNo 由大到小處理（避免增刪頁造成後續留言頁碼漂移）；
+        每套用一筆立即標記該筆 status，不要最後整批改寫
 - [ ] playground：3 頁測試 deck，手動跑通完整閉環
       （留言 → /apply-comments → HMR 更新 → 留言標記 applied）
 
@@ -41,6 +47,9 @@
 
 - [ ] 留言輸入框元件取代 `prompt()`（Vue 元件、Escape 取消、Enter 送出）
 - [ ] 既有留言 pin 標記渲染（依 rect 相對座標、依頁碼過濾）
+- [ ] comments.json 變更推播：middleware 以 Vite watcher 監看檔案，
+      `server.ws.send` 推自訂事件通知 overlay 重新載入
+      （agent 標記 applied 後 pin 即時消失，不需重新整理頁面）
 - [ ] 留言列表側欄：檢視全部 open 留言、單筆撤回（DELETE）
 - [ ] 留言模式的視覺提示（游標樣式、hover 高亮目標元素）
 - [ ] applied/skipped 留言的歷史檢視（可選）

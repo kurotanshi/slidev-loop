@@ -41,13 +41,18 @@ Slidev 生態已有成熟的「agent 生成投影片」方案（官方 slidev sk
 - 已在用 Slidev 的開發者，想用 Claude Code / Cursor 迭代投影片。
 - 用 agent 生成了第一版 deck、需要快速視覺化修改回饋的使用者。
 
-## 使用者故事（MVP）
+## 使用者故事
+
+### MVP（Phase 1 驗收範圍）
 
 1. 我在 dev mode 按快捷鍵進入留言模式，點擊投影片上的標題，輸入「縮短成十個字以內」。
 2. 我對同一頁再留兩則留言，留言被記錄且重新整理頁面後仍在。
 3. 我在 Claude Code 執行 `/apply-comments`，agent 逐筆套用修改、回報每筆的處理結果，
    瀏覽器透過 HMR 即時更新，留言被標記為 `applied`、UI 不再顯示（保留於檔案中可追溯）。
 4. agent 對不確定的留言（語意模糊、找不到對應元素）會回報並跳過，不會亂改。
+
+### MVP 之後（Phase 3）
+
 5. 我請 agent「做一份介紹本 repo auth 模組的簡報」，它先讀程式碼、給我大綱確認，
    才生成 slides.md（research-first）。
 6. 我用的是 Codex（或 Cursor / Gemini CLI）而非 Claude Code，跑過
