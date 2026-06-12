@@ -74,6 +74,7 @@ async function main() {
       await page.getByTestId('slidev-loop-comments').getByText(smokeComment).waitFor({
         timeout: 10_000,
       })
+      await page.getByTestId('slidev-loop-pin').first().waitFor({ timeout: 10_000 })
     } finally {
       await browser.close()
     }

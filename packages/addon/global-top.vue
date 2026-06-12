@@ -15,6 +15,24 @@
       </div>
     </div>
 
+    <div
+      v-if="slideBounds && visibleComments.length"
+      :style="pinsLayerStyle"
+      data-testid="slidev-loop-pins"
+    >
+      <button
+        v-for="(comment, index) in visibleComments"
+        :key="comment.id"
+        type="button"
+        :aria-label="`Comment ${index + 1}: ${comment.comment}`"
+        :style="getPinStyle(comment)"
+        :title="comment.comment"
+        data-testid="slidev-loop-pin"
+      >
+        <span :style="pinBadgeStyle">{{ index + 1 }}</span>
+      </button>
+    </div>
+
     <form
       v-if="pendingPayload"
       :style="formStyle"
@@ -43,7 +61,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useNav } from '@slidev/client'
 
 const isDev = import.meta.env.DEV
@@ -53,6 +71,7 @@ const commentMode = ref(false)
 const pendingPayload = ref(null)
 const draftComment = ref('')
 const inputRef = ref(null)
+const slideBounds = ref(null)
 const currentPage = computed(() => nav.currentPage.value)
 const visibleComments = computed(() =>
   comments.value.filter((comment) => comment.status === 'open' && comment.slideNo === currentPage.value),
@@ -101,6 +120,28 @@ const commentStyle = {
   color: '#111827',
   boxShadow: '0 4px 12px rgb(0 0 0 / 0.18)',
 }
+const pinsLayerStyle = {
+  position: 'fixed',
+  inset: '0',
+  zIndex: '35',
+  pointerEvents: 'none',
+}
+const pinBadgeStyle = {
+  position: 'absolute',
+  top: '-11px',
+  left: '-11px',
+  display: 'grid',
+  placeItems: 'center',
+  width: '22px',
+  height: '22px',
+  border: '2px solid #111827',
+  borderRadius: '999px',
+  background: '#f59e0b',
+  color: '#111827',
+  font:
+    '700 12px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  boxShadow: '0 6px 16px rgb(0 0 0 / 0.22)',
+}
 const formStyle = {
   position: 'fixed',
   top: '52px',
@@ -148,14 +189,22 @@ const secondaryButtonStyle = {
 onMounted(() => {
   if (!isDev) return
   loadComments()
+  updateSlideBounds()
   window.addEventListener('keydown', onKeyDown, true)
+  window.addEventListener('resize', updateSlideBounds)
   document.addEventListener('click', onDocumentClick, true)
 })
 
 onUnmounted(() => {
   if (!isDev) return
   window.removeEventListener('keydown', onKeyDown, true)
+  window.removeEventListener('resize', updateSlideBounds)
   document.removeEventListener('click', onDocumentClick, true)
+})
+
+watch(currentPage, async () => {
+  await nextTick()
+  updateSlideBounds()
 })
 
 function toggleCommentMode() {
@@ -199,6 +248,7 @@ async function onDocumentClick(event) {
     rect,
   }
   draftComment.value = ''
+  updateSlideBounds()
   await nextTick()
   inputRef.value?.focus()
 }
@@ -246,8 +296,34 @@ async function loadComments() {
     if (!response.ok) return
     const body = await response.json()
     comments.value = Array.isArray(body.comments) ? body.comments : []
+    updateSlideBounds()
   } catch (error) {
     console.warn('Slidev Loop comments could not be loaded:', error)
+  }
+}
+
+function getPinStyle(comment) {
+  const bounds = slideBounds.value
+  const rect = comment.rect
+  if (!bounds || !isValidRect(rect)) return { display: 'none' }
+
+  const width = Math.max(24, rect.w * bounds.width)
+  const height = Math.max(18, rect.h * bounds.height)
+
+  return {
+    position: 'fixed',
+    left: `${bounds.left + rect.x * bounds.width}px`,
+    top: `${bounds.top + rect.y * bounds.height}px`,
+    width: `${width}px`,
+    height: `${height}px`,
+    margin: '0',
+    padding: '0',
+    border: '2px solid #f59e0b',
+    borderRadius: '6px',
+    background: 'rgb(245 158 11 / 0.14)',
+    boxShadow: '0 0 0 2px rgb(17 24 39 / 0.72), 0 10px 24px rgb(0 0 0 / 0.18)',
+    cursor: 'default',
+    pointerEvents: 'auto',
   }
 }
 
@@ -296,6 +372,37 @@ function getRelativeRect(element, slide) {
 
 function getSlideElement() {
   return document.querySelector('#slide-content') ?? document.querySelector('.slidev-slide-content')
+}
+
+function updateSlideBounds() {
+  const slide = getSlideElement()
+  if (!slide) {
+    slideBounds.value = null
+    return
+  }
+
+  const rect = slide.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) {
+    slideBounds.value = null
+    return
+  }
+
+  slideBounds.value = {
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+  }
+}
+
+function isValidRect(rect) {
+  return (
+    rect &&
+    Number.isFinite(rect.x) &&
+    Number.isFinite(rect.y) &&
+    Number.isFinite(rect.w) &&
+    Number.isFinite(rect.h)
+  )
 }
 
 function clampRatio(value) {
