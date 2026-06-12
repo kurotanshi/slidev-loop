@@ -15,9 +15,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 pnpm dev      # run the playground Slidev deck (pnpm -C playground dev)
 pnpm test     # vitest run
-pnpm smoke    # scripts/smoke.ts — dev server + curl + Playwright integration check (created in Phase 0)
 npx vitest run path/to/file.test.ts   # single test file
 ```
+
+Phase 0 will add `pnpm smoke` (`scripts/smoke.ts` — dev server + curl + Playwright overlay check, with tsx/playwright devDependencies); it does not exist yet.
 
 pnpm workspace (`packages/*` + `playground`), Node >= 20.12.
 

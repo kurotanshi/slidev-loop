@@ -7,8 +7,7 @@
   },
   "scripts": {
     "dev": "pnpm -C playground dev",
-    "test": "vitest run",
-    "smoke": "tsx scripts/smoke.ts"
+    "test": "vitest run"
   },
   "devDependencies": {
     "vitest": "^3.0.0"
