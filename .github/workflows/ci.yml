@@ -21,3 +21,30 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:instructions
       - run: pnpm test
+
+  smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        slidev-cli:
+          - locked
+          - latest
+    name: smoke (${{ matrix.slidev-cli }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Install Rolldown Linux native binding
+        run: pnpm add -Dw @rolldown/binding-linux-x64-gnu@1.0.3
+      - name: Install latest Slidev CLI
+        if: matrix.slidev-cli == 'latest'
+        run: pnpm -C playground add @slidev/cli@latest
+      - run: pnpm -C playground exec slidev --version
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm smoke
