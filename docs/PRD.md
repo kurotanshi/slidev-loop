@@ -71,7 +71,7 @@ Slidev 生態已有成熟的「agent 生成投影片」方案（官方 slidev sk
 
 - 安裝步驟 ≤ 3 步（npm install、headmatter 一行、`npx slidev-loop init`）。
 
-Phase 1 期間 addon 以 playground 相對路徑掛載、指令以手動 SKILL.md 驗證，
+Phase 1 期間 addon 以 playground workspace dependency 掛載、指令以手動 SKILL.md 驗證，
 不適用安裝指標。
 
 ## 風險

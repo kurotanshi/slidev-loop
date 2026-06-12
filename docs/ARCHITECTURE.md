@@ -52,7 +52,10 @@ addons:
 ---
 ```
 
-本地開發時 playground 以相對路徑掛載：`addons: ['../packages/addon']`。
+本地開發時 playground 以 workspace dependency 掛載 `slidev-addon-loop`，
+headmatter 使用正式名稱 `addons: ['loop']`。實測 Slidev 52.16.0 下，直接在
+headmatter 寫相對 addon 路徑會被解析到 workspace 上層，不適合作為本 repo 的
+playground 方式。
 
 ## 2. 瀏覽器端：global-top.vue（接點二）
 
@@ -82,23 +85,22 @@ global-top.vue 職責：
 
 ### 已知風險與備案
 
-官方 global layers 文件僅明確寫了「專案根目錄」可提供這些檔案；addon root 是否
-同樣被聚合需要 Phase 0 spike 驗證（Slidev 對 components/layouts 是聚合多 roots 的，
-global layers 大概率同理，但未見文件保證）。若不行，備案是安裝說明多一步：請使用者
-在專案根目錄建立 `global-top.vue`，內容只有一行 re-export addon 的元件。
+Phase 0 已在 @slidev/cli 52.16.0 驗證：addon root 提供的 `global-top.vue`
+會被聚合，且 global layer context 可用。若未來 Slidev 版本回歸，備案是安裝說明
+多一步：請使用者在專案根目錄建立 `global-top.vue`，內容只有一行 re-export addon 的元件。
 
 ## 3. 伺服器端：vite.config.ts middleware(接點三)
 
 Slidev 官方文件明載：「your vite.config.ts will be respected … and will be merged
 with the Vite config provided by Slidev, your theme **and the addons**」。
-addon 自帶的 `vite.config.ts` 會被合併進 dev server。
+Phase 0 已在 @slidev/cli 52.16.0 驗證：addon 自帶的 `vite.config.ts` 會被合併進
+dev server。為避免發布後讓使用者安裝第二份 Vite，addon 的 config 匯出純物件，
+不從 `vite` runtime import `defineConfig`。
 
 ```ts
-// packages/addon/vite.config.ts（示意）
-import { defineConfig } from 'vite'
 import { commentsMiddleware } from './plugin/middleware'
 
-export default defineConfig({
+export default {
   plugins: [
     {
       name: 'slidev-addon-loop',
@@ -108,7 +110,7 @@ export default defineConfig({
       },
     },
   ],
-})
+}
 ```
 
 限制：不可重複加入 Slidev 內部已用的 plugin（@vitejs/plugin-vue、unocss/vite 等）—
@@ -134,9 +136,11 @@ API 介面：
 實作注意點：
 
 - temp 檔必須放在與 comments.json **同一目錄**（跨檔案系統的 rename 不是原子操作）。
-- 壞 JSON 的復原策略：rename 成 `comments.json.bak` 後重新初始化，不 silent 覆蓋，
-  保留現場供除錯。
-- schema 驗證用 valibot 或 zod，欄位上限（comment 長度、elementText 200 字）定義為常數。
+- 壞 JSON 的復原策略只在 queued write path 執行：rename 成 `comments.json.bak`
+  後重新初始化，不 silent 覆蓋，保留現場供除錯。純讀取的 GET 不修檔，避免繞過
+  寫入 queue。
+- schema 驗證用 zod。欄位上限定義為常數：`elementText` 200 字、
+  `selectorPath` 1000 字、`comment` 2000 字、`resolution` 2000 字。
   另設**總留言數上限**（如 500）：`slidev --remote` 模式下此 API 暴露於區域網路，
   上限防止檔案被灌爆。
 - Connect middleware 的 `server.middlewares.use('/__agent/comments', ...)` 會 strip
@@ -270,10 +274,10 @@ comment 工作流本質上也是同一邏輯。
 
 ## 7. 版本相容策略
 
-- 最低 Slidev 版本以 **`engines.slidev`** 宣告（如 `"engines": { "slidev": ">=52.0.0" }`）。
+- 最低 Slidev 版本以 **`engines.slidev`** 宣告（目前 `"engines": { "slidev": ">=52.16.0" }`）。
   這是 Slidev 官方慣例（theme 與 addon 同一機制，見 write-theme / write-addon 文件）：
   檢查者是 Slidev CLI 本身而非 npm，版本不符時會直接對使用者顯示錯誤。
-  實際下限由 Phase 0 spike 驗證時的版本決定。
+  下限由 Phase 0 spike 驗證時的 @slidev/cli 52.16.0 決定。
 - 可選補強：另加 `@slidev/cli` 到 `peerDependencies`，讓 npm 層也有版本訊號；
   但 `engines.slidev` 為主、不可省略。
 - playground 對 `@slidev/cli@latest` 跑煙霧測試（dev server 起得來、middleware 回 200、

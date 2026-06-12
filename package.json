@@ -7,9 +7,13 @@
   },
   "scripts": {
     "dev": "pnpm -C playground dev",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "devDependencies": {
+    "@slidev/cli": "52.16.0",
+    "playwright": "^1.54.0",
+    "tsx": "^4.20.3",
     "vitest": "^3.0.0"
   }
 }

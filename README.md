@@ -33,7 +33,7 @@ packages/addon/               # slidev-addon-loop（npm 套件）
 packages/agent-instructions/  # 單一事實來源：工作流指令（純 markdown）
 packages/agent-adapters/      # 各家 agent 轉接層（Claude Code plugin、AGENTS.md、
                               #   .cursor/、.gemini/ 等，由 sync 腳本生成）
-playground/                   # 本地測試用 Slidev deck
+playground/                   # 本地測試用 Slidev deck（workspace dependency 掛載 addon）
 docs/                         # 規劃文件
 ```
 
@@ -72,4 +72,5 @@ docs/                         # 規劃文件
 
 ## 狀態
 
-規劃階段。實作前須先完成 docs/TASKS.md 的 Phase 0 spikes（兩項整合假設驗證）。
+Phase 0 spikes 已完成；Phase 1A–1C 與最小 overlay 也已落地。下一步是用
+`apply-comments.md` 手動驗證 playground 閉環，完成 Phase 1D 驗收。
