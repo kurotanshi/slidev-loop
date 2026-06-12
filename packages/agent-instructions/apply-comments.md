@@ -130,4 +130,6 @@ If the PNG reveals a problem, fix the slide and export again when practical. If
 you cannot run export or cannot inspect images in the current agent environment,
 say so in the final report and rely on source-level checks instead. Do not mark
 a visually risky comment `applied` solely because `slides.md` was edited; mark
-it `skipped` when you cannot make or verify a confident change.
+it `skipped` when you cannot make or verify a confident change. Before marking a
+comment `skipped`, revert any slide edits made only for that comment so skipped
+means the slide was left untouched for that feedback item.
