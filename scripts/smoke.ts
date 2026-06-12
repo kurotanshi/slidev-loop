@@ -13,6 +13,12 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function assertNear(actual: number, expected: number, label: string, tolerance = 4) {
+  if (Math.abs(actual - expected) > tolerance) {
+    throw new Error(`${label} expected ${expected} +/- ${tolerance}, received ${actual}`)
+  }
+}
+
 async function waitForServer(timeoutMs = 30_000) {
   const startedAt = Date.now()
   let lastError: unknown
@@ -81,10 +87,20 @@ async function main() {
       await page.getByTestId('slidev-loop-comments').getByText(smokeComment).waitFor({
         timeout: 10_000,
       })
-      await page.getByTestId('slidev-loop-pin').first().waitFor({ timeout: 10_000 })
+      const firstPin = page.getByTestId('slidev-loop-pin').first()
+      await firstPin.waitFor({ timeout: 10_000 })
+      const headingBox = await heading.boundingBox()
+      const pinBox = await firstPin.boundingBox()
+      if (!headingBox || !pinBox) {
+        throw new Error('Could not read heading or pin geometry')
+      }
+      assertNear(pinBox.x, headingBox.x, 'pin x')
+      assertNear(pinBox.y, headingBox.y, 'pin y')
+      assertNear(pinBox.width, headingBox.width, 'pin width')
+      assertNear(pinBox.height, headingBox.height, 'pin height')
       await heading.click()
       await markSmokeCommentApplied(smokeComment)
-      await page.getByTestId('slidev-loop-pin').first().waitFor({
+      await firstPin.waitFor({
         state: 'detached',
         timeout: 10_000,
       })
