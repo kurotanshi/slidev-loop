@@ -165,4 +165,25 @@ describe('slidev-loop init generator', () => {
     expect(prompt).toContain('Create a Slidev Deck')
     expect(prompt).toContain('research-first')
   })
+
+  it('includes optional PNG verification in every apply-comments adapter', async () => {
+    await initProject({
+      projectRoot: root,
+      agents: ['claude', 'codex', 'cursor', 'gemini', 'copilot'],
+    })
+
+    const applyPaths = [
+      '.claude/plugins/slidev-loop/skills/slidev-loop-apply-comments/SKILL.md',
+      '.codex/prompts/slidev-loop/apply-comments.md',
+      '.cursor/commands/slidev-loop-apply-comments.md',
+      '.gemini/commands/slidev-loop/apply-comments.toml',
+      '.github/prompts/slidev-loop-apply-comments.prompt.md',
+    ]
+
+    for (const relativePath of applyPaths) {
+      const content = await readFile(join(root, relativePath), 'utf8')
+      expect(content).toContain('PNG self-verification')
+      expect(content).toContain('npx slidev export --format png --range <slideNo>')
+    }
+  })
 })

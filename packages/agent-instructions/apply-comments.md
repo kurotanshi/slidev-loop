@@ -109,10 +109,25 @@ For `skipped`:
 
 ## Verification
 
-When practical, run the Slidev dev server or export the touched slide:
+At minimum, report which comments were applied or skipped and why.
+
+When the user asks for visual verification, or when a handled comment changes
+layout, color, sizing, images, dense text, or other visual presentation, perform
+PNG self-verification if the local project can run Slidev export.
+
+Export only the touched slide numbers when possible:
 
 ```bash
 npx slidev export --format png --range <slideNo>
 ```
 
-At minimum, report which comments were applied or skipped and why.
+Then inspect the generated PNG before finalizing the affected comments. Confirm
+that the requested change is visible and that the slide has no obvious
+regression such as clipped text, unreadable contrast, broken layout, missing
+images, or unintended overflow.
+
+If the PNG reveals a problem, fix the slide and export again when practical. If
+you cannot run export or cannot inspect images in the current agent environment,
+say so in the final report and rely on source-level checks instead. Do not mark
+a visually risky comment `applied` solely because `slides.md` was edited; mark
+it `skipped` when you cannot make or verify a confident change.
