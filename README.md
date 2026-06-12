@@ -30,26 +30,36 @@
 comments.json 時，dev server 會透過 Vite ws 推播通知 overlay — 已處理的留言
 pin 即時消失，不需重新整理頁面。
 
+留言寫入後不會自動啟動 agent。瀏覽器 addon 只負責收集回饋與同步狀態；
+套用修改需要使用者在 agent 介面明確執行 `/apply-comments` 或等價指令。
+可選的自動套用 watcher 列在 Phase 4.5，會以 terminal 中明確 opt-in 的 CLI 形式設計。
+
 ## 快速開始
 
-> 尚未發布到 npm（發布為 Phase 4），目前以本 repo 的 playground 試用。
+> 尚未發布到 npm（發布為 Phase 4）。目前用本 repo 的 playground 試跑；
+> 下方也列出發布後預期的使用者安裝流程，實際 package 發布前仍可能微調。
+
+### 目前：用 playground 試跑
 
 ```bash
 pnpm install
-pnpm dev          # 啟動 playground deck（預設 http://localhost:3030）
+pnpm dev
 ```
 
-1. 在瀏覽器中按 `c`（或右上角 **Comment** 鈕）進入留言模式，
-   hover 會高亮可留言的元素。
-2. 點擊投影片上的任意元素，輸入留言（Enter 送出、Esc 取消）。
-   留言落地到 `playground/.slidev/comments.json`，重新整理後仍在。
-3. 生成 agent 轉接檔（發布後等價於 `npx slidev-loop init`）：
+`pnpm dev` 會啟動 playground deck（預設 `http://localhost:3030`）。
+開啟瀏覽器後：
+
+1. 按 `c` 或右上角 **Comment** 進入留言模式。
+2. hover 投影片元素會顯示高亮框；點擊元素後輸入留言。
+3. Enter 送出，Esc 取消。留言會寫入
+   `playground/.slidev/comments.json`，重新整理後仍在。
+4. 生成 agent 轉接檔：
 
    ```bash
    node packages/cli/bin/slidev-loop.mjs init --agents claude,codex,cursor,gemini,copilot --root playground
    ```
 
-4. 請 agent 套用留言：
+5. 在你使用的 agent 裡明確觸發 apply-comments 工作流：
    - **Claude Code**：載入生成的 plugin（`--plugin-dir .claude/plugins/slidev-loop`，
      正式安裝流程於 Phase 4 定案）後執行 `slidev-loop-apply-comments` skill。
    - **Codex**：直接說「套用投影片留言」，它會循 `AGENTS.md` 找到工作流。
@@ -58,6 +68,40 @@ pnpm dev          # 啟動 playground deck（預設 http://localhost:3030）
 
    agent 修改 `slides.md` 後 HMR 即時更新畫面，留言被標記 `applied`、pin 即時消失；
    無法定位或語意模糊的留言會標記 `skipped` 並在 `resolution` 寫明原因，不會亂改。
+   這一步目前是手動觸發；留言送出本身只會寫入 `.slidev/comments.json`，不會自動呼叫 agent。
+
+### 發布後：在自己的 Slidev deck 使用
+
+預期流程：
+
+```bash
+pnpm add -D slidev-addon-loop slidev-loop
+npx slidev-loop init --agents codex
+```
+
+在 `slides.md` headmatter 啟用 addon：
+
+```yaml
+---
+addons:
+  - loop
+---
+```
+
+若你要同時產生多家 agent 的轉接檔：
+
+```bash
+npx slidev-loop init --agents claude,codex,cursor,gemini,copilot
+```
+
+使用時一樣是兩步：
+
+1. 在瀏覽器留言，建立 `.slidev/comments.json`。
+2. 在 agent 介面執行 `/apply-comments` 或等價 prompt，讓 agent 修改 `slides.md`
+   並把留言標記為 `applied` / `skipped`。
+
+Slidev Loop 預設不會自動呼叫 agent CLI。後續若提供 `slidev-loop watch --agent <agent>`，
+也會是使用者在 terminal 明確啟動的 opt-in 模式。
 
 開發驗證：
 
