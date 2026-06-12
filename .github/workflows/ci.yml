@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -24,6 +27,7 @@ jobs:
 
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -31,6 +35,9 @@ jobs:
           - locked
           - latest
     name: smoke (${{ matrix.slidev-cli }})
+    # The latest leg exists to surface upstream Slidev drift; it must not
+    # block unrelated PRs when upstream ships a breaking change.
+    continue-on-error: ${{ matrix.slidev-cli == 'latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -38,13 +45,23 @@ jobs:
           version: 10.12.1
       - uses: actions/setup-node@v4
         with:
+          # Slidev's Rolldown path needs a util.styleText signature that is
+          # missing in Node 20.12 (the package engine floor used by the test job).
           node-version: 24
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Install Rolldown Linux native binding
-        run: pnpm add -Dw @rolldown/binding-linux-x64-gnu@1.0.3
       - name: Install latest Slidev CLI
         if: matrix.slidev-cli == 'latest'
         run: pnpm -C playground add @slidev/cli@latest
+      - name: Install Rolldown Linux native binding
+        # pnpm install does not install rolldown's platform-specific optional
+        # dependency in CI. The version must match the resolved rolldown, so
+        # read it from the lockfile (which the latest leg has just updated)
+        # instead of pinning it here.
+        run: |
+          version="$(grep -oE "@rolldown/binding-linux-x64-gnu@[0-9][^':]*" pnpm-lock.yaml | head -n1 | cut -d@ -f3)"
+          test -n "$version"
+          pnpm add -Dw "@rolldown/binding-linux-x64-gnu@${version}"
       - run: pnpm -C playground exec slidev --version
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm smoke
