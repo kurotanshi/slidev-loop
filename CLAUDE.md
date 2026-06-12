@@ -33,7 +33,7 @@ Three packages with strict separation of concerns (full detail in [docs/ARCHITEC
 
 ### Comment data model
 
-`comments.json` entries carry `slideNo` (hard locator — slides are split by `---` surrounded by blank lines, headmatter doesn't count as a page), `elementText` (soft locator — the LLM matches it within that single slide's source), `rect` as 0–1 relative ratios, and `status: open | applied | skipped`. Agents mark comments rather than delete them; UI shows only `open`.
+`comments.json` entries carry `slideNo` (hard locator — slides are split by `---` surrounded by blank lines, headmatter doesn't count as a page), `elementText` (soft locator — the LLM matches it within that single slide's source), `rect` as 0–1 ratios relative to the slide container element (not the viewport — Slidev scales slides with `transform: scale`), `status: open | applied | skipped`, `createdAt`/`updatedAt`, and `resolution` (agent's note; required reason when skipped). Agents mark comments rather than delete them — one at a time, processing in descending `slideNo` order; UI shows only `open`. `selectorPath` is UI-only; agents must not use it for locating.
 
 ### Key design decisions (do not revisit casually)
 
@@ -45,7 +45,7 @@ Three packages with strict separation of concerns (full detail in [docs/ARCHITEC
 
 ## Development Conventions
 
-- Phase 1 (store + middleware) is explicitly TDD: write Vitest tests first. Required test cases are listed per-file in [docs/TASKS.md](docs/TASKS.md).
+- Phase 1 runs 1A → 1D in order: schema + canonical `apply-comments.md` draft first (1A — the workflow drives the schema, not the other way around), then store (1B) and middleware (1C) via TDD — write Vitest tests first; required test cases are listed per-file in [docs/TASKS.md](docs/TASKS.md) — then the minimal overlay closes the loop (1D).
 - Minimum Slidev version is declared via `engines.slidev` in the addon's package.json — the official Slidev convention (checked by the Slidev CLI itself, not npm). Exact floor to be confirmed by Phase 0; record the version used in spikes. Optionally add `@slidev/cli` to peerDependencies as an npm-level signal, but `engines.slidev` stays.
 - Planning docs and README are written in Traditional Chinese; keep them that way.
 - [docs/PRD.md](docs/PRD.md) holds user stories (MVP acceptance = stories 1–4 verified with Claude Code), success metrics, and the risk/fallback table.

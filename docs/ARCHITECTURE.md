@@ -135,11 +135,13 @@ API 介面：
   上限防止檔案被灌爆。
 - Connect middleware 的 `server.middlewares.use('/__agent/comments', ...)` 會 strip
   路徑前綴，DELETE 的 `:id` 需自行從 `req.url` 解析。
-- 併發策略：comments.json 有**兩個互不知情的 read-modify-write 寫者** —
-  middleware（使用者新留言）與 agent（直接改磁碟檔標記 `applied`）。MVP 接受
-  last-write-wins，但兩端都要縮小競態窗口：middleware 每次寫入前重新讀檔合併、
-  不在記憶體長期持有狀態；agent 端由 canonical 指令規定「每套用一筆立即更新該筆
-  status」而非最後整批改寫。store 測試須驗證併發寫入不毀損檔案。
+- 併發策略分兩層。**同程序內**（同一 dev server 的多個 POST/DELETE）：
+  store 內建單程序寫入 queue，所有寫入序列化、不互相覆蓋 — 成本低、必做，
+  不接受純 last-write-wins。**跨程序**（agent 直接改磁碟檔 vs middleware）：
+  MVP 接受 last-write-wins，但兩端都要縮小競態窗口 — middleware 每次寫入前
+  重新讀檔合併、不在記憶體長期持有狀態；agent 端由 canonical 指令規定
+  「每套用一筆立即更新該筆 status」而非最後整批改寫。跨程序檔案鎖延後到
+  有實際毀損案例再做。store 測試須驗證並發寫入經 queue 後不遺失、不毀損。
 - 留言狀態同步（Phase 2）：agent 標記 `applied` 改的是磁碟檔，不在 HMR 管轄內，
   overlay 的 pin 不會自己消失。由 middleware 以 Vite watcher 監看 comments.json，
   變更時 `server.ws.send` 推自訂事件通知 overlay 重新載入。
@@ -163,7 +165,9 @@ API 介面：
       "rect": { "x": 0.12, "y": 0.08, "w": 0.55, "h": 0.10 },
       "comment": "標題縮短到十個字以內",
       "createdAt": "2026-06-12T10:30:00Z",
-      "status": "open"
+      "updatedAt": "2026-06-12T10:30:00Z",
+      "status": "open",
+      "resolution": null
     }
   ]
 }
@@ -177,6 +181,10 @@ API 介面：
   縮放置中投影片，視窗有 letterbox，直接除以視窗寬高會得到錯的比例。
 - `status: open | applied | skipped`，agent 處理後標記而非立即刪除，保留可追溯性；
   UI 只顯示 open。
+- `createdAt` 由瀏覽器端產生；`updatedAt` 由每次寫入方（middleware 或 agent）更新。
+- `resolution`（nullable 字串）：agent 標記時寫入處理說明 —
+  **skipped 必填原因**（applied 可選填摘要），UI 歷史檢視與回報摘要直接引用，
+  不必另外解析 agent 的對話輸出。
 
 ## 5. Agent 端：多 agent 指令層
 
@@ -226,7 +234,8 @@ claude,codex,cursor` 一次寫入使用者專案。
 3. 逐筆套用修改。樣式類修改用 UnoCSS class 或 per-slide frontmatter 表達，
    不引入 inline style。留言若要求補充事實/數據，agent 先收集查證再寫入
    （調整階段同樣可觸發資料收集）。
-4. 無法定位或語意模糊的留言：標記 `skipped` 並在回報中說明原因，不猜測。
+4. 無法定位或語意模糊的留言：標記 `skipped`、把原因寫入 `resolution` 欄位
+   並在回報中說明，不猜測。
 5. （可選驗證）`npx slidev export --format png --range <slideNo>` 渲染該頁，
    目視確認後再結案。
 6. **每套用一筆立即把該筆標記 `applied`**（而非最後整批改寫 —

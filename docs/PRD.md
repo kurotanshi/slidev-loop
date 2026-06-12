@@ -51,7 +51,7 @@ Slidev 生態已有成熟的「agent 生成投影片」方案（官方 slidev sk
    瀏覽器透過 HMR 即時更新，留言被標記為 `applied`、UI 不再顯示（保留於檔案中可追溯）。
 4. agent 對不確定的留言（語意模糊、找不到對應元素）會回報並跳過，不會亂改。
 
-### MVP 之後（Phase 3）
+### MVP 之後（Phase 3A）
 
 5. 我請 agent「做一份介紹本 repo auth 模組的簡報」，它先讀程式碼、給我大綱確認，
    才生成 slides.md（research-first）。
