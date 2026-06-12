@@ -33,6 +33,7 @@ async function waitForServer(timeoutMs = 30_000) {
 
 async function main() {
   const smokeComment = `Smoke comment ${Date.now()}`
+  const deletedSmokeComment = `Smoke delete ${Date.now()}`
   const child = spawn(
     process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
     ['-C', 'playground', 'exec', 'slidev', 'slides.md', '--port', String(port)],
@@ -83,6 +84,18 @@ async function main() {
         state: 'detached',
         timeout: 10_000,
       })
+
+      await overlay.getByRole('button', { name: 'Comment' }).click()
+      await page.getByRole('heading', { name: 'Slidev Loop' }).click()
+      await page.getByTestId('slidev-loop-input').fill(deletedSmokeComment)
+      await page.getByTestId('slidev-loop-form').getByRole('button', { name: 'Add' }).click()
+
+      const deletedRow = page.getByTestId('slidev-loop-comment-row').filter({
+        hasText: deletedSmokeComment,
+      })
+      await deletedRow.waitFor({ timeout: 10_000 })
+      await deletedRow.getByTestId('slidev-loop-delete-comment').click()
+      await deletedRow.waitFor({ state: 'detached', timeout: 10_000 })
     } finally {
       await browser.close()
     }
@@ -93,6 +106,7 @@ async function main() {
     throw error
   } finally {
     await cleanupSmokeComment(smokeComment).catch(() => undefined)
+    await cleanupSmokeComment(deletedSmokeComment).catch(() => undefined)
     stopProcessTree(child)
   }
 }

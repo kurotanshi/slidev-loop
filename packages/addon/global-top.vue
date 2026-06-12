@@ -9,9 +9,26 @@
       <span v-if="commentMode" :style="hintStyle">click a slide element</span>
     </div>
 
-    <div v-if="visibleComments.length" :style="listStyle" data-testid="slidev-loop-comments">
-      <div v-for="comment in visibleComments" :key="comment.id" :style="commentStyle">
-        {{ comment.comment }}
+    <div v-if="openComments.length" :style="listStyle" data-testid="slidev-loop-comments">
+      <div
+        v-for="comment in openComments"
+        :key="comment.id"
+        :style="commentStyle"
+        data-testid="slidev-loop-comment-row"
+      >
+        <div :style="commentBodyStyle">
+          <span :style="commentMetaStyle">p{{ comment.slideNo }}</span>
+          <span :style="commentTextStyle">{{ comment.comment }}</span>
+        </div>
+        <button
+          type="button"
+          :aria-label="`Delete comment: ${comment.comment}`"
+          :style="deleteButtonStyle"
+          data-testid="slidev-loop-delete-comment"
+          @click="deleteComment(comment.id)"
+        >
+          Delete
+        </button>
       </div>
     </div>
 
@@ -74,8 +91,9 @@ const inputRef = ref(null)
 const slideBounds = ref(null)
 let removeCommentsChangedListener = () => {}
 const currentPage = computed(() => nav.currentPage.value)
+const openComments = computed(() => comments.value.filter((comment) => comment.status === 'open'))
 const visibleComments = computed(() =>
-  comments.value.filter((comment) => comment.status === 'open' && comment.slideNo === currentPage.value),
+  openComments.value.filter((comment) => comment.slideNo === currentPage.value),
 )
 
 const panelStyle = {
@@ -115,11 +133,37 @@ const listStyle = {
     '12px/1.4 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 }
 const commentStyle = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '8px',
   padding: '6px 8px',
   borderRadius: '6px',
   background: '#fef3c7',
   color: '#111827',
   boxShadow: '0 4px 12px rgb(0 0 0 / 0.18)',
+}
+const commentBodyStyle = {
+  minWidth: '0',
+  display: 'grid',
+  gap: '2px',
+}
+const commentMetaStyle = {
+  color: '#92400e',
+  fontWeight: '700',
+}
+const commentTextStyle = {
+  overflowWrap: 'anywhere',
+}
+const deleteButtonStyle = {
+  border: '1px solid #b45309',
+  borderRadius: '4px',
+  padding: '2px 5px',
+  background: '#fffbeb',
+  color: '#7c2d12',
+  cursor: 'pointer',
+  font:
+    '11px/1.3 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 }
 const pinsLayerStyle = {
   position: 'fixed',
@@ -303,6 +347,22 @@ async function loadComments() {
   } catch (error) {
     console.warn('Slidev Loop comments could not be loaded:', error)
   }
+}
+
+async function deleteComment(id) {
+  try {
+    const response = await fetch(`/__agent/comments/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    if (!response.ok && response.status !== 404) {
+      const body = await response.text()
+      console.error(`Slidev Loop delete failed: ${response.status} ${body}`)
+      return
+    }
+  } catch (error) {
+    console.error('Slidev Loop delete failed:', error)
+    return
+  }
+
+  await loadComments()
 }
 
 function listenForCommentsChanged() {
