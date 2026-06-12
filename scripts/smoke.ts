@@ -67,11 +67,10 @@ async function main() {
       await overlay.waitFor({ timeout: 10_000 })
       await overlay.getByText('Slidev Loop').waitFor({ timeout: 10_000 })
 
-      page.once('dialog', async (dialog) => {
-        await dialog.accept(smokeComment)
-      })
       await overlay.getByRole('button', { name: 'Comment' }).click()
       await page.getByRole('heading', { name: 'Slidev Loop' }).click()
+      await page.getByTestId('slidev-loop-input').fill(smokeComment)
+      await page.getByTestId('slidev-loop-form').getByRole('button', { name: 'Add' }).click()
       await page.getByTestId('slidev-loop-comments').getByText(smokeComment).waitFor({
         timeout: 10_000,
       })

@@ -14,17 +14,45 @@
         {{ comment.comment }}
       </div>
     </div>
+
+    <form
+      v-if="pendingPayload"
+      :style="formStyle"
+      data-testid="slidev-loop-form"
+      @submit.prevent="submitPendingComment"
+      @keydown.esc.prevent.stop="cancelPendingComment"
+    >
+      <textarea
+        ref="inputRef"
+        v-model="draftComment"
+        :style="inputStyle"
+        data-testid="slidev-loop-input"
+        rows="3"
+        @keydown.enter.exact.prevent="submitPendingComment"
+      />
+      <div :style="formActionsStyle">
+        <button type="button" :style="secondaryButtonStyle" @click="cancelPendingComment">
+          Cancel
+        </button>
+        <button type="submit" :style="primaryButtonStyle">
+          Add
+        </button>
+      </div>
+    </form>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useNav } from '@slidev/client'
 
 const isDev = import.meta.env.DEV
 const nav = useNav()
 const comments = ref([])
 const commentMode = ref(false)
+const pendingPayload = ref(null)
+const draftComment = ref('')
+const inputRef = ref(null)
 const currentPage = computed(() => nav.currentPage.value)
 const visibleComments = computed(() =>
   comments.value.filter((comment) => comment.status === 'open' && comment.slideNo === currentPage.value),
@@ -73,6 +101,49 @@ const commentStyle = {
   color: '#111827',
   boxShadow: '0 4px 12px rgb(0 0 0 / 0.18)',
 }
+const formStyle = {
+  position: 'fixed',
+  top: '52px',
+  left: '50%',
+  zIndex: '45',
+  width: 'min(420px, calc(100vw - 32px))',
+  transform: 'translateX(-50%)',
+  padding: '10px',
+  border: '1px solid #334155',
+  borderRadius: '8px',
+  background: '#0f172a',
+  boxShadow: '0 16px 40px rgb(15 23 42 / 0.34)',
+}
+const inputStyle = {
+  boxSizing: 'border-box',
+  width: '100%',
+  minHeight: '72px',
+  resize: 'vertical',
+  border: '1px solid #475569',
+  borderRadius: '6px',
+  padding: '8px',
+  background: '#f8fafc',
+  color: '#0f172a',
+  font:
+    '13px/1.4 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+}
+const formActionsStyle = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: '8px',
+  marginTop: '8px',
+}
+const primaryButtonStyle = {
+  ...buttonStyle,
+  borderColor: '#f59e0b',
+  background: '#f59e0b',
+  color: '#111827',
+  fontWeight: '700',
+}
+const secondaryButtonStyle = {
+  ...buttonStyle,
+  background: '#0f172a',
+}
 
 onMounted(() => {
   if (!isDev) return
@@ -89,6 +160,7 @@ onUnmounted(() => {
 
 function toggleCommentMode() {
   commentMode.value = !commentMode.value
+  if (!commentMode.value) cancelPendingComment()
 }
 
 function onKeyDown(event) {
@@ -97,6 +169,7 @@ function onKeyDown(event) {
   if (event.key.toLowerCase() !== 'c') return
 
   commentMode.value = !commentMode.value
+  if (!commentMode.value) cancelPendingComment()
   event.preventDefault()
   event.stopPropagation()
 }
@@ -113,20 +186,31 @@ async function onDocumentClick(event) {
   event.preventDefault()
   event.stopPropagation()
 
-  const userComment = window.prompt('Comment for this slide element')
-  if (!userComment?.trim()) return
   const rect = getRelativeRect(target, slide)
   if (!rect) {
     console.warn('Slidev Loop could not locate the slide container for this comment target.')
     return
   }
 
-  const payload = {
+  pendingPayload.value = {
     slideNo: currentPage.value,
     elementText: getElementText(target),
     selectorPath: getSelectorPath(target),
     rect,
-    comment: userComment.trim(),
+  }
+  draftComment.value = ''
+  await nextTick()
+  inputRef.value?.focus()
+}
+
+async function submitPendingComment() {
+  if (!pendingPayload.value) return
+  const comment = draftComment.value.trim()
+  if (!comment) return
+
+  const payload = {
+    ...pendingPayload.value,
+    comment,
   }
 
   try {
@@ -147,7 +231,13 @@ async function onDocumentClick(event) {
   }
 
   commentMode.value = false
+  cancelPendingComment()
   await loadComments()
+}
+
+function cancelPendingComment() {
+  pendingPayload.value = null
+  draftComment.value = ''
 }
 
 async function loadComments() {
