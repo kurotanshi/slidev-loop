@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 pnpm dev      # run the playground Slidev deck (pnpm -C playground dev)
 pnpm test     # vitest run
+pnpm smoke    # scripts/smoke.ts — dev server + curl + Playwright integration check (created in Phase 0)
 npx vitest run path/to/file.test.ts   # single test file
 ```
 
@@ -33,7 +34,7 @@ Three packages with strict separation of concerns (full detail in [docs/ARCHITEC
 
 ### Comment data model
 
-`comments.json` entries carry `slideNo` (hard locator — slides are split by `---` surrounded by blank lines, headmatter doesn't count as a page), `elementText` (soft locator — the LLM matches it within that single slide's source), `rect` as 0–1 ratios relative to the slide container element (not the viewport — Slidev scales slides with `transform: scale`), `status: open | applied | skipped`, `createdAt`/`updatedAt`, and `resolution` (agent's note; required reason when skipped). Agents mark comments rather than delete them — one at a time, processing in descending `slideNo` order; UI shows only `open`. `selectorPath` is UI-only; agents must not use it for locating.
+`comments.json` entries carry `slideNo` (hard locator — slides are split by `---` surrounded by blank lines, headmatter doesn't count as a page), `elementText` (soft locator — the LLM matches it within that single slide's source), `rect` as 0–1 ratios relative to the slide container element (not the viewport — Slidev scales slides with `transform: scale`), `status: open | applied | skipped`, `createdAt`/`updatedAt`, and `resolution` (agent's note; required reason when skipped). The client POST payload carries only `slideNo`/`elementText`/`selectorPath`/`rect`/`comment`; `id`, `status`, timestamps, and `resolution` are server-generated. Agents mark comments rather than delete them — one at a time, processing in descending `slideNo` order, and for multiple comments on one slide, resolving every locator against the original slide source before applying any edit; UI shows only `open`. `selectorPath` is UI-only; agents must not use it for locating.
 
 ### Key design decisions (do not revisit casually)
 

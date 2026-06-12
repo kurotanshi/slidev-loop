@@ -61,9 +61,17 @@ Slidev 生態已有成熟的「agent 生成投影片」方案（官方 slidev sk
 
 ## 成功指標
 
+**Phase 1 驗收（本地 MVP）**
+
 - 從留言到看到修改結果 < 1 分鐘（單則留言）。
 - agent 定位錯頁率 ≈ 0（頁碼是硬資訊）；單頁內定位錯誤率 < 5%。
-- 安裝步驟 ≤ 3 步（npm install、headmatter 一行、安裝 Claude Code plugin）。
+
+**Phase 3A / 4 驗收（公開安裝 UX）**
+
+- 安裝步驟 ≤ 3 步（npm install、headmatter 一行、`npx slidev-loop init`）。
+
+Phase 1 期間 addon 以 playground 相對路徑掛載、指令以手動 SKILL.md 驗證，
+不適用安裝指標。
 
 ## 風險
 

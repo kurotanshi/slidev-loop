@@ -122,6 +122,12 @@ API 介面：
 | POST | /__agent/comments | 新增一筆（schema 驗證，拒絕超長/缺欄位） |
 | DELETE | /__agent/comments/:id | 刪除單筆（使用者在 UI 撤回留言） |
 
+**兩個 schema 分開定義**：client POST payload 只含瀏覽器能觀察到的五個欄位
+（`slideNo`、`elementText`、`selectorPath`、`rect`、`comment`）；
+`id`、`status: "open"`、`createdAt`、`updatedAt`、`resolution: null`
+一律由 middleware/store 生成補齊，client 不得指定 —
+時間戳與 id 的權威在伺服器端，schema 驗證對 POST payload 拒絕多餘欄位。
+
 寫入策略：寫到 `<專案根>/.slidev/comments.json`，採 write-temp-then-rename 原子寫入,
 避免 agent 讀到半寫狀態。
 
@@ -181,7 +187,9 @@ API 介面：
   縮放置中投影片，視窗有 letterbox，直接除以視窗寬高會得到錯的比例。
 - `status: open | applied | skipped`，agent 處理後標記而非立即刪除，保留可追溯性；
   UI 只顯示 open。
-- `createdAt` 由瀏覽器端產生；`updatedAt` 由每次寫入方（middleware 或 agent）更新。
+- `id`、`status`、`createdAt`、`updatedAt`、`resolution` 由 middleware/store 生成，
+  不在 client POST payload 內（見第 3 節的兩 schema 區分）；
+  `updatedAt` 由每次寫入方（middleware 或 agent）更新。
 - `resolution`（nullable 字串）：agent 標記時寫入處理說明 —
   **skipped 必填原因**（applied 可選填摘要），UI 歷史檢視與回報摘要直接引用，
   不必另外解析 agent 的對話輸出。
@@ -228,6 +236,10 @@ claude,codex,cursor` 一次寫入使用者專案。
 1. 讀 `.slidev/comments.json`，取所有 `status: open` 的留言，
    **依 `slideNo` 由大到小排序**後處理 — 結構變動（增刪頁）只影響其後的頁碼，
    倒序處理可避免先套用的修改讓後續留言的 `slideNo` 漂移。
+   **同頁多則留言成組處理**：先以該頁的**原始源碼**解析出每一筆的目標位置，
+   全部定位完成後才開始套用修改 — 避免第一筆修改改掉第二筆賴以定位的
+   `elementText`；若兩筆留言的目標重疊或互相衝突，保守者優先、
+   另一筆標記 `skipped` 說明衝突。
 2. 讀 `slides.md`。定位規則：投影片以「前後空行包圍的 `---`」分隔，第一個 YAML 區塊為
    headmatter（不算頁）；第 N 頁 = 第 N 個分隔區段。用留言的 `elementText` 在該頁
    源碼內找到對應行。
