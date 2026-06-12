@@ -72,6 +72,7 @@ const pendingPayload = ref(null)
 const draftComment = ref('')
 const inputRef = ref(null)
 const slideBounds = ref(null)
+let removeCommentsChangedListener = () => {}
 const currentPage = computed(() => nav.currentPage.value)
 const visibleComments = computed(() =>
   comments.value.filter((comment) => comment.status === 'open' && comment.slideNo === currentPage.value),
@@ -190,6 +191,7 @@ onMounted(() => {
   if (!isDev) return
   loadComments()
   updateSlideBounds()
+  listenForCommentsChanged()
   window.addEventListener('keydown', onKeyDown, true)
   window.addEventListener('resize', updateSlideBounds)
   document.addEventListener('click', onDocumentClick, true)
@@ -200,6 +202,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown, true)
   window.removeEventListener('resize', updateSlideBounds)
   document.removeEventListener('click', onDocumentClick, true)
+  removeCommentsChangedListener()
 })
 
 watch(currentPage, async () => {
@@ -300,6 +303,15 @@ async function loadComments() {
   } catch (error) {
     console.warn('Slidev Loop comments could not be loaded:', error)
   }
+}
+
+function listenForCommentsChanged() {
+  const hot = import.meta.hot
+  if (!hot) return
+
+  const handler = () => loadComments()
+  hot.on('slidev-loop:comments-changed', handler)
+  removeCommentsChangedListener = () => hot.off?.('slidev-loop:comments-changed', handler)
 }
 
 function getPinStyle(comment) {

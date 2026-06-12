@@ -1,10 +1,13 @@
 import { spawn } from 'node:child_process'
+import { readFile, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import process from 'node:process'
 import { chromium } from 'playwright'
 
 const port = Number(process.env.SLIDEV_LOOP_SMOKE_PORT ?? 4177)
 const host = process.env.SLIDEV_LOOP_SMOKE_HOST ?? 'localhost'
 const baseUrl = `http://${host}:${port}`
+const commentsPath = join(process.cwd(), 'playground', '.slidev', 'comments.json')
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -75,6 +78,11 @@ async function main() {
         timeout: 10_000,
       })
       await page.getByTestId('slidev-loop-pin').first().waitFor({ timeout: 10_000 })
+      await markSmokeCommentApplied(smokeComment)
+      await page.getByTestId('slidev-loop-pin').first().waitFor({
+        state: 'detached',
+        timeout: 10_000,
+      })
     } finally {
       await browser.close()
     }
@@ -99,6 +107,21 @@ async function cleanupSmokeComment(smokeComment: string) {
   if (createdComment?.id) {
     await fetch(`${baseUrl}/__agent/comments/${createdComment.id}`, { method: 'DELETE' })
   }
+}
+
+async function markSmokeCommentApplied(smokeComment: string) {
+  const raw = await readFile(commentsPath, 'utf8')
+  const file = JSON.parse(raw)
+  const comment = file.comments?.find(
+    (candidate: { comment?: string }) => candidate.comment === smokeComment,
+  )
+  if (!comment) {
+    throw new Error(`Smoke comment was not written to ${commentsPath}`)
+  }
+
+  comment.status = 'applied'
+  comment.updatedAt = new Date().toISOString()
+  await writeFile(commentsPath, `${JSON.stringify(file, null, 2)}\n`, 'utf8')
 }
 
 function stopProcessTree(child: ReturnType<typeof spawn>) {
