@@ -37,17 +37,16 @@
       :style="pinsLayerStyle"
       data-testid="slidev-loop-pins"
     >
-      <button
+      <div
         v-for="(comment, index) in visibleComments"
         :key="comment.id"
-        type="button"
-        :aria-label="`Comment ${index + 1}: ${comment.comment}`"
+        aria-hidden="true"
         :style="getPinStyle(comment)"
         :title="comment.comment"
         data-testid="slidev-loop-pin"
       >
         <span :style="pinBadgeStyle">{{ index + 1 }}</span>
-      </button>
+      </div>
     </div>
 
     <div
@@ -313,6 +312,11 @@ async function onDocumentClick(event) {
   if (!commentMode.value) return
   if (!(event.target instanceof Element)) return
   if (event.target.closest('[data-slidev-loop-ui]')) return
+  if (pendingPayload.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    return
+  }
 
   const target = event.target
   const slide = getSlideElement()
@@ -448,8 +452,7 @@ function getPinStyle(comment) {
     borderRadius: '6px',
     background: 'rgb(245 158 11 / 0.14)',
     boxShadow: '0 0 0 2px rgb(17 24 39 / 0.72), 0 10px 24px rgb(0 0 0 / 0.18)',
-    cursor: 'default',
-    pointerEvents: 'auto',
+    pointerEvents: 'none',
   }
 }
 

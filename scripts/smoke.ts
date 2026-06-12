@@ -82,6 +82,7 @@ async function main() {
         timeout: 10_000,
       })
       await page.getByTestId('slidev-loop-pin').first().waitFor({ timeout: 10_000 })
+      await heading.click()
       await markSmokeCommentApplied(smokeComment)
       await page.getByTestId('slidev-loop-pin').first().waitFor({
         state: 'detached',
@@ -90,7 +91,13 @@ async function main() {
 
       await overlay.getByRole('button', { name: 'Comment' }).click()
       await heading.click()
-      await page.getByTestId('slidev-loop-input').fill(deletedSmokeComment)
+      const input = page.getByTestId('slidev-loop-input')
+      await input.fill(deletedSmokeComment)
+      await page.getByText('Phase 0 integration spike').click()
+      const preservedDraft = await input.inputValue()
+      if (preservedDraft !== deletedSmokeComment) {
+        throw new Error('Comment draft was reset by a stray slide click')
+      }
       await page.getByTestId('slidev-loop-form').getByRole('button', { name: 'Add' }).click()
 
       const deletedRow = page.getByTestId('slidev-loop-comment-row').filter({
