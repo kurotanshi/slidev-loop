@@ -2,7 +2,7 @@ import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const supportedAgents = new Set(['claude', 'codex'])
+const supportedAgents = new Set(['claude', 'codex', 'cursor', 'gemini', 'copilot'])
 const managedStart = '<!-- slidev-loop:start -->'
 const managedEnd = '<!-- slidev-loop:end -->'
 
@@ -24,7 +24,9 @@ export function parseAgents(value) {
 
   for (const agent of agents) {
     if (!supportedAgents.has(agent)) {
-      throw new Error(`Unsupported agent "${agent}". Supported agents: claude, codex`)
+      throw new Error(
+        `Unsupported agent "${agent}". Supported agents: claude, codex, cursor, gemini, copilot`,
+      )
     }
   }
 
@@ -41,6 +43,15 @@ export async function initProject({ projectRoot, agents }) {
     }
     if (agent === 'codex') {
       writes.push(...(await renderCodexFiles(projectRoot, instructions)))
+    }
+    if (agent === 'cursor') {
+      writes.push(...renderCursorFiles(instructions))
+    }
+    if (agent === 'gemini') {
+      writes.push(...(await renderGeminiFiles(projectRoot, instructions)))
+    }
+    if (agent === 'copilot') {
+      writes.push(...(await renderCopilotFiles(projectRoot, instructions)))
     }
   }
 
@@ -143,9 +154,100 @@ async function renderCodexFiles(projectRoot, instructions) {
   ]
 }
 
+function renderCursorFiles(instructions) {
+  return [
+    {
+      path: '.cursor/rules/slidev-loop.mdc',
+      content: renderCursorRule(),
+    },
+    {
+      path: '.cursor/commands/slidev-loop-create-deck.md',
+      content: renderPromptCommand({
+        title: 'Create a Slidev Deck',
+        body: instructions.createDeck,
+      }),
+    },
+    {
+      path: '.cursor/commands/slidev-loop-apply-comments.md',
+      content: renderPromptCommand({
+        title: 'Apply Slidev Loop Comments',
+        body: instructions.applyComments,
+      }),
+    },
+  ]
+}
+
+async function renderGeminiFiles(projectRoot, instructions) {
+  const geminiPath = join(projectRoot, 'GEMINI.md')
+  const existingGemini = await readOptionalFile(geminiPath)
+
+  return [
+    {
+      path: 'GEMINI.md',
+      content: replaceManagedBlock(existingGemini, renderGeminiBlock(), 'GEMINI.md'),
+    },
+    {
+      path: '.gemini/commands/slidev-loop/create-deck.toml',
+      content: renderGeminiCommand(instructions.createDeck),
+    },
+    {
+      path: '.gemini/commands/slidev-loop/apply-comments.toml',
+      content: renderGeminiCommand(instructions.applyComments),
+    },
+  ]
+}
+
+async function renderCopilotFiles(projectRoot, instructions) {
+  const instructionsPath = join(projectRoot, '.github', 'copilot-instructions.md')
+  const existingInstructions = await readOptionalFile(instructionsPath)
+
+  return [
+    {
+      path: '.github/copilot-instructions.md',
+      content: replaceManagedBlock(
+        existingInstructions,
+        renderCopilotInstructionsBlock(),
+        '.github/copilot-instructions.md',
+      ),
+    },
+    {
+      path: '.github/prompts/slidev-loop-create-deck.prompt.md',
+      content: renderPromptCommand({
+        title: 'Create a Slidev Deck',
+        body: instructions.createDeck,
+      }),
+    },
+    {
+      path: '.github/prompts/slidev-loop-apply-comments.prompt.md',
+      content: renderPromptCommand({
+        title: 'Apply Slidev Loop Comments',
+        body: instructions.applyComments,
+      }),
+    },
+  ]
+}
+
 function renderSkill({ name, description, body }) {
   const bodyWithoutTitle = body.replace(/^# .*\n+/, '')
   return `---\nname: ${name}\ndescription: ${description}\n---\n\n${bodyWithoutTitle}`
+}
+
+function renderPromptCommand({ title, body }) {
+  return `# ${title}\n\n${body.replace(/^# .*\n+/, '')}`
+}
+
+function renderCursorRule() {
+  return `---
+description: Use when creating Slidev decks or applying Slidev Loop comments from .slidev/comments.json.
+alwaysApply: false
+---
+
+When the user asks to create a Slidev deck, use \`.cursor/commands/slidev-loop-create-deck.md\`.
+
+When the user asks to apply rendered slide feedback or process \`.slidev/comments.json\`, use \`.cursor/commands/slidev-loop-apply-comments.md\`.
+
+Slidev Loop comments are stored in \`.slidev/comments.json\`. Preserve handled records for audit history; mark them \`applied\` or \`skipped\` instead of deleting them.
+`
 }
 
 function renderCodexAgentsBlock() {
@@ -164,13 +266,42 @@ deleting them.
 ${managedEnd}`
 }
 
-function replaceManagedBlock(existing, block) {
+function renderGeminiBlock() {
+  return `${managedStart}
+## Slidev Loop
+
+Use these slash commands for Slidev Loop workflows:
+
+- \`/slidev-loop:create-deck\` to create or update a Slidev deck.
+- \`/slidev-loop:apply-comments\` to apply rendered slide feedback from \`.slidev/comments.json\`.
+
+Preserve handled comment records for audit history; mark them \`applied\` or \`skipped\` instead of deleting them.
+${managedEnd}`
+}
+
+function renderCopilotInstructionsBlock() {
+  return `${managedStart}
+## Slidev Loop
+
+When creating Slidev decks, follow \`.github/prompts/slidev-loop-create-deck.prompt.md\`.
+
+When applying rendered slide feedback, follow \`.github/prompts/slidev-loop-apply-comments.prompt.md\` and process \`.slidev/comments.json\`.
+
+Preserve handled comment records for audit history; mark them \`applied\` or \`skipped\` instead of deleting them.
+${managedEnd}`
+}
+
+function renderGeminiCommand(body) {
+  return `prompt = ${JSON.stringify(body)}\n`
+}
+
+function replaceManagedBlock(existing, block, filename = 'AGENTS.md') {
   if (!existing.trim()) return `${block}\n`
 
   const start = existing.indexOf(managedStart)
   const end = existing.indexOf(managedEnd)
   if ((start === -1) !== (end === -1)) {
-    throw new Error('AGENTS.md contains an incomplete Slidev Loop managed block')
+    throw new Error(`${filename} contains an incomplete Slidev Loop managed block`)
   }
   if (start !== -1 && end !== -1 && end > start) {
     const before = existing.slice(0, start).trimEnd()

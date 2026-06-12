@@ -3,11 +3,11 @@ import { initProject, parseAgents } from '../src/generate.mjs'
 
 function printUsage() {
   console.log(`Usage:
-  slidev-loop init --agents <claude,codex> [--root <dir>]
+  slidev-loop init --agents <claude,codex,cursor,gemini,copilot> [--root <dir>]
 
 Examples:
   slidev-loop init --agents claude,codex
-  slidev-loop init --agents claude --root ./my-slidev-deck`)
+  slidev-loop init --agents cursor,gemini,copilot --root ./my-slidev-deck`)
 }
 
 async function main(argv) {

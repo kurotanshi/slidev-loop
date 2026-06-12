@@ -32,7 +32,13 @@ describe('slidev-loop init generator', () => {
   })
 
   it('parses and deduplicates supported agents', () => {
-    expect(parseAgents('claude,codex,claude')).toEqual(['claude', 'codex'])
+    expect(parseAgents('claude,codex,cursor,gemini,copilot,claude')).toEqual([
+      'claude',
+      'codex',
+      'cursor',
+      'gemini',
+      'copilot',
+    ])
   })
 
   it('rejects unsupported agents', () => {
@@ -55,6 +61,11 @@ describe('slidev-loop init generator', () => {
 
     await expect(initProject({ projectRoot: root, agents: ['codex'] })).rejects.toThrow(
       /incomplete slidev loop managed block/i,
+    )
+
+    await writeFile(join(root, 'GEMINI.md'), '<!-- slidev-loop:end -->\nold block\n', 'utf8')
+    await expect(initProject({ projectRoot: root, agents: ['gemini'] })).rejects.toThrow(
+      /GEMINI.md contains an incomplete slidev loop managed block/i,
     )
   })
 
@@ -96,6 +107,59 @@ describe('slidev-loop init generator', () => {
 
     const prompt = await readFile(
       join(root, '.codex/prompts/slidev-loop/create-deck.md'),
+      'utf8',
+    )
+    expect(prompt).toContain('Create a Slidev Deck')
+    expect(prompt).toContain('research-first')
+  })
+
+  it('writes Cursor rules and command prompts', async () => {
+    const written = await initProject({ projectRoot: root, agents: ['cursor'] })
+
+    expect(written).toEqual([
+      '.cursor/rules/slidev-loop.mdc',
+      '.cursor/commands/slidev-loop-create-deck.md',
+      '.cursor/commands/slidev-loop-apply-comments.md',
+    ])
+
+    const rule = await readFile(join(root, '.cursor/rules/slidev-loop.mdc'), 'utf8')
+    expect(rule).toContain('alwaysApply: false')
+    expect(rule).toContain('.cursor/commands/slidev-loop-apply-comments.md')
+
+    const command = await readFile(
+      join(root, '.cursor/commands/slidev-loop-apply-comments.md'),
+      'utf8',
+    )
+    expect(command).toContain('Apply Slidev Loop Comments')
+    expect(command).toContain('Read comments from `.slidev/comments.json`.')
+  })
+
+  it('writes Gemini managed instructions and TOML slash commands idempotently', async () => {
+    await initProject({ projectRoot: root, agents: ['gemini'] })
+    await initProject({ projectRoot: root, agents: ['gemini'] })
+
+    const gemini = await readFile(join(root, 'GEMINI.md'), 'utf8')
+    expect(gemini.match(/slidev-loop:start/g)).toHaveLength(1)
+    expect(gemini).toContain('/slidev-loop:apply-comments')
+
+    const command = await readFile(
+      join(root, '.gemini/commands/slidev-loop/apply-comments.toml'),
+      'utf8',
+    )
+    expect(command).toMatch(/^prompt = "/)
+    expect(command).toContain('Apply Slidev Loop Comments')
+  })
+
+  it('writes Copilot instructions and prompt files idempotently', async () => {
+    await initProject({ projectRoot: root, agents: ['copilot'] })
+    await initProject({ projectRoot: root, agents: ['copilot'] })
+
+    const instructions = await readFile(join(root, '.github/copilot-instructions.md'), 'utf8')
+    expect(instructions.match(/slidev-loop:start/g)).toHaveLength(1)
+    expect(instructions).toContain('.github/prompts/slidev-loop-apply-comments.prompt.md')
+
+    const prompt = await readFile(
+      join(root, '.github/prompts/slidev-loop-create-deck.prompt.md'),
       'utf8',
     )
     expect(prompt).toContain('Create a Slidev Deck')

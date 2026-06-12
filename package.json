@@ -9,7 +9,8 @@
     "dev": "pnpm -C playground dev",
     "test": "vitest run --passWithNoTests",
     "smoke": "tsx scripts/smoke.ts",
-    "sync:instructions": "node scripts/sync-instructions.mjs"
+    "sync:instructions": "node scripts/sync-instructions.mjs",
+    "check:instructions": "node scripts/check-instructions.mjs"
   },
   "devDependencies": {
     "@slidev/cli": "52.16.0",
