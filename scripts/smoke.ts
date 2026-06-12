@@ -72,7 +72,10 @@ async function main() {
       await overlay.getByText('Slidev Loop').waitFor({ timeout: 10_000 })
 
       await overlay.getByRole('button', { name: 'Comment' }).click()
-      await page.getByRole('heading', { name: 'Slidev Loop' }).click()
+      const heading = page.getByRole('heading', { name: 'Slidev Loop' })
+      await heading.hover()
+      await page.getByTestId('slidev-loop-hover-highlight').waitFor({ timeout: 10_000 })
+      await heading.click()
       await page.getByTestId('slidev-loop-input').fill(smokeComment)
       await page.getByTestId('slidev-loop-form').getByRole('button', { name: 'Add' }).click()
       await page.getByTestId('slidev-loop-comments').getByText(smokeComment).waitFor({
@@ -86,7 +89,7 @@ async function main() {
       })
 
       await overlay.getByRole('button', { name: 'Comment' }).click()
-      await page.getByRole('heading', { name: 'Slidev Loop' }).click()
+      await heading.click()
       await page.getByTestId('slidev-loop-input').fill(deletedSmokeComment)
       await page.getByTestId('slidev-loop-form').getByRole('button', { name: 'Add' }).click()
 

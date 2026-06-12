@@ -50,6 +50,12 @@
       </button>
     </div>
 
+    <div
+      v-if="commentMode && hoverBounds"
+      :style="getHoverHighlightStyle()"
+      data-testid="slidev-loop-hover-highlight"
+    />
+
     <form
       v-if="pendingPayload"
       :style="formStyle"
@@ -89,6 +95,7 @@ const pendingPayload = ref(null)
 const draftComment = ref('')
 const inputRef = ref(null)
 const slideBounds = ref(null)
+const hoverBounds = ref(null)
 let removeCommentsChangedListener = () => {}
 const currentPage = computed(() => nav.currentPage.value)
 const openComments = computed(() => comments.value.filter((comment) => comment.status === 'open'))
@@ -239,6 +246,7 @@ onMounted(() => {
   window.addEventListener('keydown', onKeyDown, true)
   window.addEventListener('resize', updateSlideBounds)
   document.addEventListener('click', onDocumentClick, true)
+  document.addEventListener('mousemove', onDocumentMouseMove, true)
 })
 
 onUnmounted(() => {
@@ -246,7 +254,9 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown, true)
   window.removeEventListener('resize', updateSlideBounds)
   document.removeEventListener('click', onDocumentClick, true)
+  document.removeEventListener('mousemove', onDocumentMouseMove, true)
   removeCommentsChangedListener()
+  clearCommentModeVisuals()
 })
 
 watch(currentPage, async () => {
@@ -255,8 +265,7 @@ watch(currentPage, async () => {
 })
 
 function toggleCommentMode() {
-  commentMode.value = !commentMode.value
-  if (!commentMode.value) cancelPendingComment()
+  setCommentMode(!commentMode.value)
 }
 
 function onKeyDown(event) {
@@ -264,10 +273,40 @@ function onKeyDown(event) {
   if (isTextInput(event.target)) return
   if (event.key.toLowerCase() !== 'c') return
 
-  commentMode.value = !commentMode.value
-  if (!commentMode.value) cancelPendingComment()
+  setCommentMode(!commentMode.value)
   event.preventDefault()
   event.stopPropagation()
+}
+
+function onDocumentMouseMove(event) {
+  if (!commentMode.value || !(event.target instanceof Element)) {
+    hoverBounds.value = null
+    return
+  }
+
+  if (event.target.closest('[data-slidev-loop-ui]')) {
+    hoverBounds.value = null
+    return
+  }
+
+  const slide = getSlideElement()
+  if (!slide || !slide.contains(event.target)) {
+    hoverBounds.value = null
+    return
+  }
+
+  const rect = event.target.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) {
+    hoverBounds.value = null
+    return
+  }
+
+  hoverBounds.value = {
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+  }
 }
 
 async function onDocumentClick(event) {
@@ -327,9 +366,24 @@ async function submitPendingComment() {
     return
   }
 
-  commentMode.value = false
-  cancelPendingComment()
+  setCommentMode(false)
   await loadComments()
+}
+
+function setCommentMode(enabled) {
+  commentMode.value = enabled
+  if (!enabled) {
+    cancelPendingComment()
+    clearCommentModeVisuals()
+    return
+  }
+
+  document.documentElement.style.cursor = 'crosshair'
+}
+
+function clearCommentModeVisuals() {
+  hoverBounds.value = null
+  document.documentElement.style.cursor = ''
 }
 
 function cancelPendingComment() {
@@ -396,6 +450,25 @@ function getPinStyle(comment) {
     boxShadow: '0 0 0 2px rgb(17 24 39 / 0.72), 0 10px 24px rgb(0 0 0 / 0.18)',
     cursor: 'default',
     pointerEvents: 'auto',
+  }
+}
+
+function getHoverHighlightStyle() {
+  const bounds = hoverBounds.value
+  if (!bounds) return { display: 'none' }
+
+  return {
+    position: 'fixed',
+    left: `${bounds.left}px`,
+    top: `${bounds.top}px`,
+    width: `${bounds.width}px`,
+    height: `${bounds.height}px`,
+    zIndex: '34',
+    border: '2px solid #38bdf8',
+    borderRadius: '6px',
+    background: 'rgb(56 189 248 / 0.12)',
+    boxShadow: '0 0 0 2px rgb(8 47 73 / 0.72)',
+    pointerEvents: 'none',
   }
 }
 
