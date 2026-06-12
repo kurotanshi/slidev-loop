@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "pnpm -C playground dev",
     "test": "vitest run --passWithNoTests",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "sync:instructions": "node scripts/sync-instructions.mjs"
   },
   "devDependencies": {
     "@slidev/cli": "52.16.0",

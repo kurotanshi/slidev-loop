@@ -1,8 +1,14 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { initProject, parseAgents } from './generate.mjs'
+
+const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
+const execFileAsync = promisify(execFile)
 
 let root
 
@@ -19,8 +25,8 @@ describe('slidev-loop init generator', () => {
     const instructionNames = ['apply-comments.md', 'create-deck.md']
 
     for (const name of instructionNames) {
-      const canonical = await readFile(join(process.cwd(), 'packages/agent-instructions', name), 'utf8')
-      const bundled = await readFile(join(process.cwd(), 'packages/cli/instructions', name), 'utf8')
+      const canonical = await readFile(join(repoRoot, 'packages/agent-instructions', name), 'utf8')
+      const bundled = await readFile(join(repoRoot, 'packages/cli/instructions', name), 'utf8')
       expect(bundled).toBe(canonical)
     }
   })
@@ -31,6 +37,25 @@ describe('slidev-loop init generator', () => {
 
   it('rejects unsupported agents', () => {
     expect(() => parseAgents('claude,unknown')).toThrow(/unsupported agent/i)
+  })
+
+  it('reports missing CLI option values', async () => {
+    const binPath = join(repoRoot, 'packages/cli/bin/slidev-loop.mjs')
+
+    await expect(execFileAsync('node', [binPath, 'init', '--root'])).rejects.toMatchObject({
+      stderr: expect.stringContaining('Missing value for --root'),
+    })
+    await expect(execFileAsync('node', [binPath, 'init', '--agents'])).rejects.toMatchObject({
+      stderr: expect.stringContaining('Missing value for --agents'),
+    })
+  })
+
+  it('rejects incomplete managed blocks instead of duplicating markers', async () => {
+    await writeFile(join(root, 'AGENTS.md'), '<!-- slidev-loop:start -->\nold block\n', 'utf8')
+
+    await expect(initProject({ projectRoot: root, agents: ['codex'] })).rejects.toThrow(
+      /incomplete slidev loop managed block/i,
+    )
   })
 
   it('writes Claude Code plugin skills from canonical instructions', async () => {

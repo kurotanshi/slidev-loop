@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -9,6 +9,7 @@ const managedEnd = '<!-- slidev-loop:end -->'
 const repoInstructionDirectory = fileURLToPath(
   new URL('../../agent-instructions/', import.meta.url),
 )
+const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const bundledInstructionDirectory = fileURLToPath(new URL('../instructions/', import.meta.url))
 
 export function parseAgents(value) {
@@ -62,11 +63,22 @@ export async function readCanonicalInstructions() {
 }
 
 async function readInstruction(filename) {
-  try {
+  if (await isWorkspaceSourceCheckout()) {
     return await readFile(join(repoInstructionDirectory, filename), 'utf8')
-  } catch (error) {
-    if (!error || error.code !== 'ENOENT') throw error
-    return readFile(join(bundledInstructionDirectory, filename), 'utf8')
+  }
+
+  return readFile(join(bundledInstructionDirectory, filename), 'utf8')
+}
+
+async function isWorkspaceSourceCheckout() {
+  try {
+    await access(join(repoRoot, 'pnpm-workspace.yaml'))
+    await access(join(repoRoot, 'packages/agent-instructions'))
+    const packageJson = JSON.parse(await readFile(join(repoRoot, 'package.json'), 'utf8'))
+    if (packageJson.name !== 'slidev-loop-monorepo') return false
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -157,6 +169,9 @@ function replaceManagedBlock(existing, block) {
 
   const start = existing.indexOf(managedStart)
   const end = existing.indexOf(managedEnd)
+  if ((start === -1) !== (end === -1)) {
+    throw new Error('AGENTS.md contains an incomplete Slidev Loop managed block')
+  }
   if (start !== -1 && end !== -1 && end > start) {
     const before = existing.slice(0, start).trimEnd()
     const after = existing.slice(end + managedEnd.length).trimStart()

@@ -28,11 +28,17 @@ async function main(argv) {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]
     if (arg === '--agents') {
+      if (!args[index + 1] || args[index + 1].startsWith('--')) {
+        throw new Error('Missing value for --agents')
+      }
       agentsValue = args[index + 1] ?? ''
       index += 1
       continue
     }
     if (arg === '--root') {
+      if (!args[index + 1] || args[index + 1].startsWith('--')) {
+        throw new Error('Missing value for --root')
+      }
       root = args[index + 1] ?? ''
       index += 1
       continue
